@@ -1,0 +1,18 @@
+# The zone must already exist in your Hostinger account. The external name is
+# "<name>|<type>|<value>"; set it with the crossplane.io/external-name
+# annotation (and spec.forProvider.zone) to import an existing record.
+apiVersion: dns.hostinger.m.crossplane.io/v1alpha1
+kind: Record
+metadata:
+  name: www
+  namespace: default
+spec:
+  forProvider:
+    zone: example.com
+    name: www
+    type: A
+    value: 203.0.113.10
+    ttl: 3600
+  providerConfigRef:
+    kind: ClusterProviderConfig
+    name: default

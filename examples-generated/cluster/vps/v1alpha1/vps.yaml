@@ -1,0 +1,23 @@
+apiVersion: vps.hostinger.crossplane.io/v1alpha1
+kind: VPS
+metadata:
+  annotations:
+    meta.upbound.io/example-id: vps/v1alpha1/vps
+  labels:
+    testing.upbound.io/example-name: box
+  name: box
+spec:
+  forProvider:
+    dataCenterId: 13
+    hostname: web-01.example.com
+    passwordSecretRef:
+      key: example-key
+      name: example-secret
+      namespace: upbound-system
+    plan: hostingercom-vps-kvm2-usd-1m
+    postInstallScriptIdSelector:
+      matchLabels:
+        testing.upbound.io/example-name: nginx
+    sshKeyIdsRefs:
+    - name: inline_key
+    templateId: 1002

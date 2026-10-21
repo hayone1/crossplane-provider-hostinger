@@ -1,0 +1,14 @@
+apiVersion: vps.hostinger.crossplane.io/v1alpha1
+kind: PostInstallScript
+metadata:
+  name: nginx
+spec:
+  forProvider:
+    name: install-nginx
+    content: |
+      #!/bin/bash
+      apt-get update
+      apt-get install -y nginx
+      systemctl enable --now nginx
+  providerConfigRef:
+    name: default

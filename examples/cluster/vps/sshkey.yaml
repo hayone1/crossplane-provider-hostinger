@@ -1,0 +1,12 @@
+apiVersion: vps.hostinger.crossplane.io/v1alpha1
+kind: SSHKey
+metadata:
+  name: laptop
+  labels:
+    owner: platform-team
+spec:
+  forProvider:
+    name: platform-team laptop
+    key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLEKEYEXAMPLEKEYEXAMPLEKEYEXAMPLE platform@example.com
+  providerConfigRef:
+    name: default

@@ -1,0 +1,36 @@
+# Creating a VPS purchases a subscription with the default payment method,
+# and deleting it cancels the subscription. Consider
+# managementPolicies or deletionPolicy: Orphan for production servers.
+apiVersion: vps.hostinger.crossplane.io/v1alpha1
+kind: VPS
+metadata:
+  name: web-01
+spec:
+  forProvider:
+    plan: hostingercom-vps-kvm2-usd-1m
+    dataCenterId: 13
+    templateId: 1002
+    hostname: web-01.example.com
+    passwordSecretRef:
+      name: web-01-root
+      namespace: crossplane-system
+      key: password
+    postInstallScriptIdRef:
+      name: nginx
+    sshKeyIdsSelector:
+      matchLabels:
+        owner: platform-team
+  writeConnectionSecretToRef:
+    name: web-01-vps
+    namespace: crossplane-system
+  providerConfigRef:
+    name: default
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: web-01-root
+  namespace: crossplane-system
+type: Opaque
+stringData:
+  password: change-me-to-a-long-random-password

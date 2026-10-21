@@ -1,0 +1,16 @@
+apiVersion: dns.hostinger.m.crossplane.io/v1alpha1
+kind: Record
+metadata:
+  annotations:
+    meta.upbound.io/example-id: dns/v1alpha1/record
+  labels:
+    testing.upbound.io/example-name: example
+  name: example
+  namespace: default
+spec:
+  forProvider:
+    name: api.dev
+    ttl: 14400
+    type: CNAME
+    value: target.example.com
+    zone: example.com

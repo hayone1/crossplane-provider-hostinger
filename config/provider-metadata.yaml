@@ -1,0 +1,128 @@
+name: hostinger/hostinger
+resources:
+    hostinger_dns_record:
+        subCategory: DNS
+        description: The
+        name: hostinger_dns_record
+        title: hostinger_dns_record
+        examples:
+            - name: example
+              manifest: |-
+                {
+                  "name": "api.dev",
+                  "ttl": 14400,
+                  "type": "CNAME",
+                  "value": "target.example.com",
+                  "zone": "example.com"
+                }
+            - name: mx
+              manifest: |-
+                {
+                  "name": "send",
+                  "ttl": 900,
+                  "type": "MX",
+                  "value": "10 feedback-smtp.ap-northeast-1.amazonses.com",
+                  "zone": "example.com"
+                }
+        argumentDocs:
+            CAA: – "<flag> <tag> <value>", e.g. "0 issue letsencrypt.org"
+            MX: – "<priority> <host>", e.g. "10 mx.example.com"
+            SRV: – "<priority> <weight> <port> <target>", e.g. "10 5 5060 sip.example.com"
+            id: – Synthetic record identifier in the form name|type|value.
+            name: – (Required) Record name relative to the zone. Use @ for the zone apex.
+            overwrite: |-
+                – (Optional) Defaults to false. When false, the record is appended to any
+                records that already exist for the same name and type. Set it to true to replace them
+                instead, which is what you need to take over a name/type pair that already has records in
+                the zone. Prefer terraform import when you want to manage an existing record as-is.
+            target.example.com: |-
+                and target.example.com.
+                are treated as the same record.
+            ttl: – (Optional) TTL in seconds. Defaults to 14400.
+            type: – (Required) Record type, such as A, AAAA, CNAME, MX, TXT, NS, SRV, CAA or ALIAS.
+            value: |-
+                – (Required) Record content. For types that carry extra fields, include them in the
+                value exactly as they appear in a zone file:
+            zone: '– (Required) DNS zone (domain) that owns the record. Example: example.com.'
+        importStatements: []
+    hostinger_vps:
+        subCategory: VPS
+        description: The
+        name: hostinger_vps
+        title: hostinger_vps
+        examples:
+            - name: box
+              manifest: |-
+                {
+                  "data_center_id": 13,
+                  "hostname": "web-01.example.com",
+                  "password": "SecureP@ssw0rd!",
+                  "plan": "hostingercom-vps-kvm2-usd-1m",
+                  "post_install_script_id": "${hostinger_vps_post_install_script.nginx.id}",
+                  "ssh_key_ids": [
+                    "${hostinger_vps_ssh_key.inline_key.id}"
+                  ],
+                  "template_id": 1002
+                }
+              references:
+                post_install_script_id: hostinger_vps_post_install_script.nginx.id
+                ssh_key_ids: hostinger_vps_ssh_key.inline_key.id
+            - name: example
+              manifest: |-
+                {
+                  "data_center_id": 22,
+                  "hostname": "srv123456.hstgr.cloud",
+                  "plan": "KVM 8",
+                  "template_id": 1141
+                }
+        argumentDocs:
+            data_center_id: – (Required) ID of the desired data center.
+            hostname: – (Optional) Fully Qualified Domain Name (FQDN). If not set, one will be auto-generated.
+            id: – Internal Hostinger VPS ID.
+            ipv4_address: – Public IPv4 address of the VPS.
+            ipv6_address: – Public IPv6 address of the VPS.
+            password: – (Optional, Sensitive) Root password. If not set, one will be auto-generated.
+            payment_method_id: – (Optional) Hostinger Payment Method ID. If not set, default will be used.
+            plan: '– (Required) VPS plan identifier. Example: hostingercom-vps-kvm2-usd-1m.'
+            post_install_script_id: – (Optional) ID of a reusable script to run after provisioning.
+            ssh_key_ids: – (Optional) List of public SSH key IDs to attach to the VPS.
+            status: – Status of the VPS provisioning.
+            template_id: '– (Required) OS template ID. Example: 1002 for Debian 11.'
+            vps_id: – Same as id, retained for convenience and backward compatibility.
+        importStatements: []
+    hostinger_vps_post_install_script:
+        subCategory: VPS
+        description: The
+        name: hostinger_vps_post_install_script
+        title: hostinger_vps_post_install_script
+        examples:
+            - name: nginx
+              manifest: |-
+                {
+                  "content": "#!/bin/bash\napt update\napt install -y nginx\n",
+                  "name": "Install NGINX"
+                }
+        argumentDocs:
+            content: '– (Required) Shell script contents. Must start with a shebang (e.g., #!/bin/bash).'
+            created_at: – Timestamp when the script was created.
+            id: – ID of the post-install script in Hostinger.
+            name: – (Required) A unique name for the script.
+            updated_at: – Timestamp when the script was last modified.
+        importStatements: []
+    hostinger_vps_ssh_key:
+        subCategory: VPS
+        description: The
+        name: hostinger_vps_ssh_key
+        title: hostinger_vps_ssh_key
+        examples:
+            - name: inline_key
+              manifest: |-
+                {
+                  "key": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD...",
+                  "name": "My Work Laptop"
+                }
+        argumentDocs:
+            id: – ID of the SSH key in Hostinger’s system.
+            key: – (Required) The actual SSH public key string (usually starts with ssh-rsa or ssh-ed25519).
+            name: – (Required) A friendly name to identify the SSH key.
+        importStatements: []

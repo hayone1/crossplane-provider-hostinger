@@ -1,0 +1,24 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-hostinger
+  annotations:
+    meta.crossplane.io/maintainer: "hayone1 <boluwatife.morawo@stu.cu.edu.ng>"
+    meta.crossplane.io/source: "github.com/hayone1/crossplane-provider-hostinger"
+    meta.crossplane.io/license: "Apache-2.0"
+    meta.crossplane.io/description: |
+      Manage Hostinger VPS instances, SSH keys, post-install scripts and DNS
+      records with Crossplane. Generated with Upjet from the Hostinger
+      Terraform provider.
+    meta.crossplane.io/readme: |
+      Crossplane provider for Hostinger, generated with Upjet from
+      https://github.com/hostinger/terraform-provider-hostinger.
+
+      Managed resources (cluster-scoped `*.hostinger.crossplane.io` and
+      namespaced `*.hostinger.m.crossplane.io`):
+      VPS, PostInstallScript and SSHKey in the vps group, Record in the dns group.
+
+      Examples: https://github.com/hayone1/crossplane-provider-hostinger/tree/main/examples
+spec:
+  capabilities:
+    - SafeStart

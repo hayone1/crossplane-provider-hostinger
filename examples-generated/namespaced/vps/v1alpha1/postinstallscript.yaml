@@ -1,0 +1,16 @@
+apiVersion: vps.hostinger.m.crossplane.io/v1alpha1
+kind: PostInstallScript
+metadata:
+  annotations:
+    meta.upbound.io/example-id: vps/v1alpha1/postinstallscript
+  labels:
+    testing.upbound.io/example-name: nginx
+  name: nginx
+  namespace: default
+spec:
+  forProvider:
+    content: |
+      #!/bin/bash
+      apt update
+      apt install -y nginx
+    name: Install NGINX

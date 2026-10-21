@@ -1,0 +1,26 @@
+name: End to End (mock API)
+
+# Drives every managed resource, in both API variants, through create,
+# references, update and delete against test/mockapi. Unlike uptest
+# (/test-examples), it needs no Hostinger account and buys nothing.
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install kind
+        run: go install sigs.k8s.io/kind@v0.33.0
+      - name: Run
+        run: ./test/e2e/run.sh

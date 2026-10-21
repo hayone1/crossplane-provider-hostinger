@@ -1,0 +1,12 @@
+apiVersion: vps.hostinger.crossplane.io/v1alpha1
+kind: SSHKey
+metadata:
+  annotations:
+    meta.upbound.io/example-id: vps/v1alpha1/sshkey
+  labels:
+    testing.upbound.io/example-name: inline_key
+  name: inline-key
+spec:
+  forProvider:
+    key: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD...
+    name: My Work Laptop
