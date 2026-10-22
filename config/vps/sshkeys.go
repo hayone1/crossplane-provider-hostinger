@@ -141,13 +141,18 @@ func accountKeys(ctx context.Context, c *hostinger.HostingerClient, ids []int) (
 			break
 		}
 	}
-	keys := make([]string, 0, len(ids))
+	return inOrder(ids, found)
+}
+
+// inOrder returns the keys with the given IDs, in that order.
+func inOrder(ids []int, keys map[int]string) ([]string, error) {
+	out := make([]string, 0, len(ids))
 	for _, id := range ids {
-		k, ok := found[id]
+		k, ok := keys[id]
 		if !ok {
 			return nil, fmt.Errorf("public key %d not found", id)
 		}
-		keys = append(keys, k)
+		out = append(out, k)
 	}
-	return keys, nil
+	return out, nil
 }

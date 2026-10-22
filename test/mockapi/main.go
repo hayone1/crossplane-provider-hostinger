@@ -120,7 +120,6 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) { //nolint:go
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.requests = append(s.requests, r.Method+" "+r.URL.Path)
-	log.Printf("%s %q", r.Method, r.URL.Path)
 
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	switch {
