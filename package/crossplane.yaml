@@ -6,12 +6,15 @@ metadata:
     meta.crossplane.io/maintainer: "hayone1 <boluwatife.morawo@stu.cu.edu.ng>"
     meta.crossplane.io/source: "github.com/hayone1/crossplane-provider-hostinger"
     meta.crossplane.io/license: "Apache-2.0"
+    friendly-name.meta.crossplane.io: Community provider for Hostinger® services
+    meta.crossplane.io/iconURI: https://raw.githubusercontent.com/hayone1/crossplane-provider-hostinger/main/extensions/icons/icon.svg
     meta.crossplane.io/description: |
-      Manage Hostinger VPS instances, SSH keys, post-install scripts and DNS
+      Manage Hostinger® VPS instances, SSH keys, post-install scripts and DNS
       records with Crossplane. Generated with Upjet from the Hostinger
-      Terraform provider.
+      Terraform provider. Independent community project, not affiliated
+      with, sponsored or endorsed by Hostinger.
     meta.crossplane.io/readme: |
-      Crossplane provider for Hostinger, generated with Upjet from
+      Crossplane provider for Hostinger® services, generated with Upjet from
       https://github.com/hostinger/terraform-provider-hostinger.
 
       Managed resources (cluster-scoped `*.hostinger.crossplane.io` and
@@ -19,6 +22,8 @@ metadata:
       VPS, PostInstallScript and SSHKey in the vps group, Record in the dns group.
 
       Examples: https://github.com/hayone1/crossplane-provider-hostinger/tree/main/examples
+
+      Independent community project, not affiliated with, sponsored or endorsed by Hostinger. Hostinger® is a trademark of its owner, used only to name the service this provider works with.
 spec:
   capabilities:
     - SafeStart
