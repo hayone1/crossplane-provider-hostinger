@@ -22,6 +22,13 @@ Resources, both cluster-scoped (`*.hostinger.crossplane.io`) and namespaced
 - `hack/add-docs-prelude.sh`: adds front matter upstream docs lack (scraper needs it)
 - `test/mockapi`, `test/e2e/run.sh`, `examples/`
 
+## Workflow
+`main` is protected by the "Protect main" ruleset: pull requests only
+(squash/rebase, no approvals needed), required checks lint, unit-tests,
+check-diff, local-deploy, e2e, govulncheck, gitleaks, codeql, branch up to
+date. PR titles must be Conventional Commits (they become the release
+commit). Dependabot ignores terraform-plugin-* (pinned to what upjet uses).
+
 ## Day to day
 ```sh
 make submodules            # once (build/ submodule)

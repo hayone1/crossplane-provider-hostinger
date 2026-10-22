@@ -198,6 +198,13 @@ The upstream documentation has no registry front matter, which Upjet's
 metadata scraper needs. `hack/add-docs-prelude.sh` adds it to the pulled
 docs during `make generate`.
 
+Changes reach `main` only through pull requests: a ruleset requires the
+CI, mock end-to-end and security checks to pass on a branch that is up to
+date with `main`, and blocks force pushes. Pull requests are squash-merged,
+so **the pull request title is the commit subject the release version is
+computed from**; give it a Conventional Commit prefix. Auto-merge is on:
+`gh pr merge --auto --squash` merges once the checks pass.
+
 Releases are automatic. When CI passes on `main`, the release workflow
 publishes the package to `ghcr.io/hayone1/provider-hostinger` and
 `xpkg.upbound.io/codejourney/provider-hostinger` and tags the commit. The
