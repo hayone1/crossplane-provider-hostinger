@@ -12,7 +12,8 @@ Only the latest release is supported; fixes ship as a new patch release.
 
 Every release is signed with [cosign](https://github.com/sigstore/cosign)
 (keyless, through GitHub Actions) and carries SLSA build provenance and an
-SPDX SBOM. The release notes give the commands for that release; in general:
+SPDX SBOM. The release notes give the commands for that release; in general
+(cosign v3 or later, older versions report "no signatures found"):
 
 ```sh
 DIGEST=$(crane digest ghcr.io/hayone1/provider-hostinger:v0.1.1)

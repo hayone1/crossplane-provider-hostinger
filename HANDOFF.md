@@ -63,5 +63,10 @@ whether the PostInstallScript Read bug is fixed.
   on main, `hack/next-version.sh` picks the next semver tag from Conventional
   Commit subjects, the package is pushed to `ghcr.io/hayone1` and mirrored
   to `xpkg.upbound.io/codejourney` (secrets `XPKG_MIRROR_*`), then tagged.
+  Before pushing it scans the image with Grype (fails on fixable critical);
+  after, it signs (cosign v3, keyless), attests SLSA provenance + SBOM and
+  creates the GitHub release. `security.yml` (govulncheck, CodeQL, gitleaks,
+  dependency review), `scorecard.yml` and Dependabot run alongside. The Go
+  toolchain is pinned in go.mod (`toolchain`); bump it for stdlib CVEs.
 - Upstream bugs reported to hostinger/terraform-provider-hostinger; drop the
   CRUD overrides once fixed.
