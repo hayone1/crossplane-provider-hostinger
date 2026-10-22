@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	ujconfig "github.com/crossplane/upjet/v2/pkg/config"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -24,6 +25,13 @@ func Configure(p *ujconfig.Provider) {
 		// template, and changing template_id reinstalls it. Run those calls
 		// in the background so they don't block the reconciler.
 		r.UseAsync = true
+		// A purchase can wait for payment, then the OS is installed.
+		r.OperationTimeouts.Create = 60 * time.Minute
+		// The schema-only provider used for code generation has no CRUD.
+		if read := r.TerraformResource.ReadContext; read != nil {
+			r.TerraformResource.CreateContext = createVPS(read)
+			r.TerraformResource.UpdateContext = updateVPS(read)
+		}
 
 		// The Terraform attributes are numeric IDs; the referenced
 		// resources' external names are exactly those IDs.

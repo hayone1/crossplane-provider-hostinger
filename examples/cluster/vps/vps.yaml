@@ -7,9 +7,9 @@ metadata:
   name: web-01
 spec:
   forProvider:
-    plan: hostingercom-vps-kvm2-usd-1m
-    dataCenterId: 13
-    templateId: 1002
+    plan: hostingercom-vps-kvm1-usd-1m
+    dataCenterId: 24
+    templateId: 1077
     hostname: web-01.example.com
     passwordSecretRef:
       name: web-01-root

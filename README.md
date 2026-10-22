@@ -104,9 +104,9 @@ metadata:
   namespace: default
 spec:
   forProvider:
-    plan: hostingercom-vps-kvm2-usd-1m
-    dataCenterId: 13
-    templateId: 1002
+    plan: hostingercom-vps-kvm1-usd-1m
+    dataCenterId: 24
+    templateId: 1077
     hostname: web-01.example.com
     passwordSecretRef: {name: web-01-root, key: password}
     sshKeyIdsSelector:
@@ -124,6 +124,9 @@ manifests for every kind.
 |---|---|---|
 | SSH public key | sensitive argument | plain `spec.forProvider.key`, so it can live in Git |
 | `PostInstallScript` that no longer exists | Read fails | reported as gone; without this, Crossplane could never finish deleting one (its delete path observes the script after removing it), and a script deleted outside Crossplane would fail forever |
+| VPS purchase answered with HTTP 202 (payment still processing) | create fails; every retry buys another VPS, and the bought one is never set up | waits for the VPS, sets it up and waits until it is running |
+| VPS already bought but not set up (state `initial`) | ignored | adopted by the next `VPS` created, instead of buying another |
+| `sshKeyIds` | deprecated endpoints: listing a VPS's keys fails (HTTP 404), so every change of `sshKeyIds` fails, and attaching answers 200 without installing the key | keys are installed through `/virtual-machines/{id}/ssh-keys` |
 | API endpoint | fixed | `ProviderConfig.spec.endpoint` |
 | Credentials | `api_token` argument / `HOSTINGER_API_TOKEN` | Secret, environment or filesystem source; JSON `{"api_token": …}` or the bare token |
 | Data sources | three | none (see above) |
@@ -137,6 +140,17 @@ too:
   method (or `paymentMethodId`). **Deleting it cancels the subscription.** For
   servers that must outlive their manifest, use `deletionPolicy: Orphan`, or
   `managementPolicies: ["Observe"]` to only track an existing VPS.
+- A new `VPS` first takes over any VPS in the account that is paid for but
+  not set up yet (state `initial`), so an interrupted purchase is never paid
+  twice. Creating one can take a while: Hostinger may hold the order until
+  payment is confirmed, and then installs the OS.
+- The root password must be accepted as both root and control panel
+  password: of the special characters, only `# + ? @` are allowed.
+- The Hostinger API is rate limited; when it trips, every call fails for
+  up to about two hours (HTTP 429, Cloudflare error 1015). Keep the poll
+  interval (`--poll`, default 10m) generous when managing many resources.
+- Hostinger refuses post-install scripts (`[VPS:2000] Unauthorized`) until
+  the account has at least one VPS.
 - Changing `templateId` **reinstalls the operating system** (`recreate`).
   `plan`, `dataCenterId` and `password` can't change after creation. Changing
   them would mean a new VPS.

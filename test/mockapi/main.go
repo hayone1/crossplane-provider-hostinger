@@ -44,7 +44,7 @@ type vm struct {
 	Plan           string `json:"plan,omitempty"`
 	DataCenterID   int    `json:"data_center_id,omitempty"`
 	TemplateID     int    `json:"template_id,omitempty"`
-	keys           map[int]bool
+	sshKeys        []string
 }
 
 type dnsRecord struct {
@@ -64,6 +64,7 @@ type server struct {
 
 	mu       sync.Mutex
 	nextID   int
+	bought   int
 	keys     map[int]*publicKey
 	scripts  map[int]*script
 	vms      map[int]*vm
@@ -132,7 +133,8 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			for _, k := range s.keys {
 				data = append(data, k)
 			}
-			writeJSON(w, http.StatusOK, map[string]any{"data": data})
+			writeJSON(w, http.StatusOK, map[string]any{"data": data,
+				"meta": map[string]int{"current_page": 1, "per_page": 50, "total": len(data)}})
 		case http.MethodPost:
 			var k publicKey
 			_ = json.NewDecoder(r.Body).Decode(&k)
@@ -140,24 +142,6 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.keys[k.ID] = &k
 			writeJSON(w, http.StatusOK, k)
 		}
-	case match(parts, "api", "vps", "v1", "public-keys", "attach", "*"):
-		v := s.vms[atoi(parts[5])]
-		if v == nil {
-			notFound(w)
-			return
-		}
-		var body struct {
-			IDs []int `json:"ids"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
-		for _, id := range body.IDs {
-			if s.keys[id] == nil {
-				writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": fmt.Sprintf("public key %d not found", id)})
-				return
-			}
-			v.keys[id] = true
-		}
-		writeJSON(w, http.StatusOK, map[string]string{"message": "ok"})
 	case match(parts, "api", "vps", "v1", "public-keys", "*") && r.Method == http.MethodDelete:
 		id := atoi(parts[4])
 		if s.keys[id] == nil {
@@ -208,14 +192,16 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		id := s.id()
-		hostname := fmt.Sprintf("srv%d.hstgr.cloud", id)
-		if req.Setup.Hostname != nil {
-			hostname = *req.Setup.Hostname
-		}
-		v := &vm{ID: id, SubscriptionID: fmt.Sprintf("sub-%d", id), Hostname: hostname, State: "running",
-			IPv4: []ip{{Address: fmt.Sprintf("203.0.113.%d", id%250)}}, IPv6: []ip{{Address: fmt.Sprintf("2001:db8::%d", id)}},
-			Plan: req.ItemID, DataCenterID: req.Setup.DataCenterID, TemplateID: req.Setup.TemplateID, keys: map[int]bool{}}
+		v := &vm{ID: id, SubscriptionID: fmt.Sprintf("sub-%d", id), Hostname: fmt.Sprintf("srv%d.hstgr.cloud", id),
+			State: "initial", Plan: req.ItemID}
 		s.vms[id] = v
+		// Like the real API when payment is still being processed, every
+		// second purchase answers 202 and leaves the VPS to be set up.
+		if s.bought++; s.bought%2 == 0 {
+			writeJSON(w, http.StatusAccepted, map[string]any{"id": id, "subscription_id": nil, "status": "payment_initiated"})
+			return
+		}
+		v.setup(req.Setup.DataCenterID, req.Setup.TemplateID, req.Setup.Hostname)
 		writeJSON(w, http.StatusOK, map[string]any{
 			"order":           map[string]any{"id": id, "subscription_id": v.SubscriptionID, "status": "completed"},
 			"virtual_machine": v,
@@ -232,6 +218,29 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			notFound(w)
 			return
 		}
+		writeJSON(w, http.StatusOK, v)
+	case match(parts, "api", "vps", "v1", "virtual-machines", "*", "setup"):
+		v := s.vms[atoi(parts[4])]
+		if v == nil {
+			notFound(w)
+			return
+		}
+		if v.State != "initial" {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "VPS is already set up"})
+			return
+		}
+		var body struct {
+			DataCenterID        int     `json:"data_center_id"`
+			TemplateID          int     `json:"template_id"`
+			Hostname            *string `json:"hostname"`
+			PostInstallScriptID *int    `json:"post_install_script_id"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body.PostInstallScriptID != nil && s.scripts[*body.PostInstallScriptID] == nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "post install script not found"})
+			return
+		}
+		v.setup(body.DataCenterID, body.TemplateID, body.Hostname)
 		writeJSON(w, http.StatusOK, v)
 	case match(parts, "api", "vps", "v1", "virtual-machines", "*", "hostname"):
 		v := s.vms[atoi(parts[4])]
@@ -257,17 +266,27 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		v.TemplateID = body.TemplateID
 		writeJSON(w, http.StatusOK, v)
-	case match(parts, "api", "vps", "v1", "virtual-machines", "*", "public-keys"):
+	// The deprecated public-keys/attach and virtual-machines/{id}/public-keys
+	// routes are left out: the real API no longer serves the second, and the
+	// first doesn't install the key.
+	case match(parts, "api", "vps", "v1", "virtual-machines", "*", "ssh-keys"):
 		v := s.vms[atoi(parts[4])]
 		if v == nil {
 			notFound(w)
 			return
 		}
-		var data []map[string]int
-		for id := range v.keys {
-			data = append(data, map[string]int{"id": id})
+		if r.Method == http.MethodPost {
+			var body struct {
+				Keys []string `json:"keys"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			v.sshKeys = append(v.sshKeys, body.Keys...)
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"data": data})
+		data := []map[string]string{}
+		for _, k := range v.sshKeys {
+			data = append(data, map[string]string{"key": k})
+		}
+		writeJSON(w, http.StatusOK, data)
 
 	case match(parts, "api", "billing", "v1", "subscriptions", "*"):
 		var found *vm
@@ -366,6 +385,16 @@ func match(parts []string, want ...string) bool {
 		}
 	}
 	return true
+}
+
+// setup installs the OS: the VPS gets its addresses and is running.
+func (v *vm) setup(dataCenterID, templateID int, hostname *string) {
+	v.State, v.DataCenterID, v.TemplateID = "running", dataCenterID, templateID
+	if hostname != nil {
+		v.Hostname = *hostname
+	}
+	v.IPv4 = []ip{{Address: fmt.Sprintf("203.0.113.%d", v.ID%250)}}
+	v.IPv6 = []ip{{Address: fmt.Sprintf("2001:db8::%d", v.ID)}}
 }
 
 func atoi(s string) int {
