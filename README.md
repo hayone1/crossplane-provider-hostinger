@@ -198,6 +198,16 @@ The upstream documentation has no registry front matter, which Upjet's
 metadata scraper needs. `hack/add-docs-prelude.sh` adds it to the pulled
 docs during `make generate`.
 
+Releases are automatic. When CI passes on `main`, the release workflow
+publishes the package to `ghcr.io/hayone1/provider-hostinger` and
+`xpkg.upbound.io/codejourney/provider-hostinger` and tags the commit. The
+version follows semantic versioning from [Conventional
+Commit](https://www.conventionalcommits.org) subjects since the last tag
+(`hack/next-version.sh`): `feat:` bumps the minor version, a breaking change
+(`feat!:`, or `BREAKING CHANGE:` in the body) the major version (the minor
+one before v1.0.0), anything else the patch version. Commits that are only
+`docs:`, `ci:`, `chore:`, `test:` or `style:` don't release.
+
 ## License
 
 Apache 2.0.

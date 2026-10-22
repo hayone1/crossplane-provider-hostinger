@@ -1,0 +1,113 @@
+name: Release
+
+# Publishes the provider package once CI passed on main. The version comes
+# from the commits since the last tag (hack/next-version.sh); the tag is
+# created only after the package was published, so a failed run can simply
+# be re-run.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g. v0.2.0); computed from the commits if empty"
+        required: false
+        default: ''
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  DOCKER_BUILDX_VERSION: 'v0.34.1'
+  CRANE_VERSION: 'v0.20.2'
+  GHCR_ORG: ghcr.io/hayone1
+  UPBOUND_ORG: xpkg.upbound.io/codejourney
+  PACKAGE: provider-hostinger
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          submodules: true
+          fetch-depth: 0
+
+      - name: Version
+        id: version
+        run: |
+          version="${{ inputs.version }}"
+          [[ -n $version ]] || version=$(hack/next-version.sh)
+          if [[ -n $version ]] && git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+            echo "::error::tag $version exists already"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version: ${version:-nothing to release}"
+
+      - name: Setup QEMU
+        if: steps.version.outputs.version != ''
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4
+        with:
+          platforms: all
+
+      - name: Setup Docker Buildx
+        if: steps.version.outputs.version != ''
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+        with:
+          version: ${{ env.DOCKER_BUILDX_VERSION }}
+          install: true
+
+      - name: Setup Go
+        if: steps.version.outputs.version != ''
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+
+      - name: Log in to the registries
+        if: steps.version.outputs.version != ''
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          XPKG_MIRROR_ACCESS_ID: ${{ secrets.XPKG_MIRROR_ACCESS_ID }}
+          XPKG_MIRROR_TOKEN: ${{ secrets.XPKG_MIRROR_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "$XPKG_MIRROR_TOKEN" | docker login xpkg.upbound.io -u "$XPKG_MIRROR_ACCESS_ID" --password-stdin
+
+      - name: Vendor Dependencies
+        if: steps.version.outputs.version != ''
+        run: make vendor vendor.check
+
+      - name: Build
+        if: steps.version.outputs.version != ''
+        run: make -j2 VERSION=${{ steps.version.outputs.version }} BRANCH_NAME=main build.all
+        env:
+          # docker buildx doesn't load the images it builds unless asked to.
+          BUILD_ARGS: "--load"
+
+      - name: Publish to GHCR
+        if: steps.version.outputs.version != ''
+        run: make -j2 VERSION=${{ steps.version.outputs.version }} BRANCH_NAME=main XPKG_REG_ORGS=$GHCR_ORG XPKG_REG_ORGS_NO_PROMOTE=$GHCR_ORG publish
+
+      - name: Mirror to Upbound
+        if: steps.version.outputs.version != ''
+        run: |
+          go install github.com/google/go-containerregistry/cmd/crane@$CRANE_VERSION
+          crane copy "$GHCR_ORG/$PACKAGE:${{ steps.version.outputs.version }}" \
+            "$UPBOUND_ORG/$PACKAGE:${{ steps.version.outputs.version }}" --allow-nondistributable-artifacts
+
+      - name: Tag
+        if: steps.version.outputs.version != ''
+        run: |
+          git tag "${{ steps.version.outputs.version }}"
+          git push origin "${{ steps.version.outputs.version }}"

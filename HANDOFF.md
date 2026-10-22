@@ -59,7 +59,9 @@ whether the PostInstallScript Read bug is fixed.
   credentials; `e2e-mock.yml` is the free one.
 
 ## Open / next
-- Tag v0.1.0 and publish via `publish-provider-package.yml` (registry is
-  `ghcr.io/hayone1`); optionally also Upbound Marketplace.
+- Releases are automatic (`.github/workflows/release.yml`): after CI passes
+  on main, `hack/next-version.sh` picks the next semver tag from Conventional
+  Commit subjects, the package is pushed to `ghcr.io/hayone1` and mirrored
+  to `xpkg.upbound.io/codejourney` (secrets `XPKG_MIRROR_*`), then tagged.
 - Upstream bugs reported to hostinger/terraform-provider-hostinger; drop the
   CRUD overrides once fixed.
