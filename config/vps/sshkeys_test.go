@@ -23,7 +23,9 @@ func TestAttachKeys(t *testing.T) {
 		case r.URL.Path == "/api/vps/v1/virtual-machines/7/ssh-keys" && r.Method == http.MethodGet:
 			_, _ = w.Write([]byte(`[{"key": "ssh-ed25519 AAA"}]`))
 		case r.URL.Path == "/api/vps/v1/virtual-machines/7/ssh-keys" && r.Method == http.MethodPost:
-			var body struct{ Keys []string }
+			var body struct {
+				Keys []string `json:"keys"`
+			}
 			_ = json.NewDecoder(r.Body).Decode(&body)
 			added = append(added, body.Keys...)
 			_, _ = w.Write([]byte(`[]`))

@@ -2,7 +2,6 @@ package vps
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -33,18 +32,8 @@ func updateVPS(read schema.ReadContextFunc) schema.UpdateContextFunc {
 			}
 		}
 		if d.HasChange("template_id") {
-			var password *string
-			if v, ok := d.GetOk("password"); ok {
-				pw := v.(string)
-				password = &pw
-			}
-			var script *int
-			if v, ok := d.GetOk("post_install_script_id"); ok {
-				id := v.(int)
-				script = &id
-			}
-			if err := c.RecreateVirtualMachine(vmID, d.Get("template_id").(int), password, script); err != nil {
-				return diag.FromErr(fmt.Errorf("failed to recreate VPS: %w", err))
+			if err := recreate(c, vmID, d); err != nil {
+				return diag.FromErr(err)
 			}
 		}
 		if d.HasChange("ssh_key_ids") {
@@ -54,6 +43,15 @@ func updateVPS(read schema.ReadContextFunc) schema.UpdateContextFunc {
 		}
 		return read(ctx, d, meta)
 	}
+}
+
+// recreate reinstalls the VPS with the template in d.
+func recreate(c *hostinger.HostingerClient, vmID int, d *schema.ResourceData) error {
+	s := setupFields(d)
+	if err := c.RecreateVirtualMachine(vmID, s.TemplateID, s.Password, s.PostInstallScriptID); err != nil {
+		return fmt.Errorf("failed to recreate VPS: %w", err)
+	}
+	return nil
 }
 
 func sshKeyIDs(d *schema.ResourceData) []int {
@@ -77,15 +75,11 @@ func attachKeys(ctx context.Context, c *hostinger.HostingerClient, vmID int, ids
 		return err
 	}
 	path := fmt.Sprintf("/api/vps/v1/virtual-machines/%d/ssh-keys", vmID)
-	status, body, err := call(ctx, c, http.MethodGet, path, nil)
-	if err != nil || status != http.StatusOK {
-		return fmt.Errorf("failed to list SSH keys of VPS %d (HTTP %d): %s %w", vmID, status, body, err)
-	}
 	var installed []struct {
 		Key string `json:"key"`
 	}
-	if err := json.Unmarshal(body, &installed); err != nil {
-		return fmt.Errorf("invalid SSH key list: %w", err)
+	if err := callJSON(ctx, c, http.MethodGet, path, nil, &installed); err != nil {
+		return fmt.Errorf("failed to list SSH keys of VPS %d: %w", vmID, err)
 	}
 	have := map[string]bool{}
 	for _, k := range installed {
@@ -100,9 +94,8 @@ func attachKeys(ctx context.Context, c *hostinger.HostingerClient, vmID int, ids
 	if len(add) == 0 {
 		return nil
 	}
-	status, body, err = call(ctx, c, http.MethodPost, path, map[string][]string{"keys": add})
-	if err != nil || status != http.StatusOK {
-		return fmt.Errorf("failed to add SSH keys to VPS %d (HTTP %d): %s %w", vmID, status, body, err)
+	if err := callJSON(ctx, c, http.MethodPost, path, map[string][]string{"keys": add}, nil); err != nil {
+		return fmt.Errorf("failed to add SSH keys to VPS %d: %w", vmID, err)
 	}
 	return nil
 }
@@ -125,10 +118,6 @@ func accountKeys(ctx context.Context, c *hostinger.HostingerClient, ids []int) (
 	}
 	found := map[int]string{}
 	for page := 1; ; page++ {
-		status, body, err := call(ctx, c, http.MethodGet, fmt.Sprintf("/api/vps/v1/public-keys?page=%d", page), nil)
-		if err != nil || status != http.StatusOK {
-			return nil, fmt.Errorf("failed to list public keys (HTTP %d): %s %w", status, body, err)
-		}
 		var res struct {
 			Data []struct {
 				ID  int    `json:"id"`
@@ -140,8 +129,8 @@ func accountKeys(ctx context.Context, c *hostinger.HostingerClient, ids []int) (
 				Total       int `json:"total"`
 			} `json:"meta"`
 		}
-		if err := json.Unmarshal(body, &res); err != nil {
-			return nil, fmt.Errorf("invalid public key list: %w", err)
+		if err := callJSON(ctx, c, http.MethodGet, fmt.Sprintf("/api/vps/v1/public-keys?page=%d", page), nil, &res); err != nil {
+			return nil, fmt.Errorf("failed to list public keys: %w", err)
 		}
 		for _, k := range res.Data {
 			if want[k.ID] {

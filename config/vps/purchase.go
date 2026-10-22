@@ -150,12 +150,8 @@ func waitNew(ctx context.Context, c *hostinger.HostingerClient, before []hosting
 
 func setup(ctx context.Context, c *hostinger.HostingerClient, id int, d *schema.ResourceData) error {
 	path := fmt.Sprintf("/api/vps/v1/virtual-machines/%d/setup", id)
-	status, body, err := call(ctx, c, http.MethodPost, path, setupFields(d))
-	if err != nil {
+	if err := callJSON(ctx, c, http.MethodPost, path, setupFields(d), nil); err != nil {
 		return fmt.Errorf("failed to set up VPS %d: %w", id, err)
-	}
-	if status < 200 || status > 299 {
-		return fmt.Errorf("failed to set up VPS %d (HTTP %d): %s", id, status, body)
 	}
 	return nil
 }
@@ -185,6 +181,25 @@ func sleep(ctx context.Context) error {
 	case <-time.After(pollInterval):
 		return nil
 	}
+}
+
+// callJSON sends a request to the Hostinger API, fails unless the status is
+// 2xx, and decodes the response into out unless it is nil.
+func callJSON(ctx context.Context, c *hostinger.HostingerClient, method, path string, in, out any) error {
+	status, body, err := call(ctx, c, method, path, in)
+	if err != nil {
+		return err
+	}
+	if status < 200 || status > 299 {
+		return fmt.Errorf("%s %s: HTTP %d: %s", method, path, status, body)
+	}
+	if out == nil {
+		return nil
+	}
+	if err := json.Unmarshal(body, out); err != nil {
+		return fmt.Errorf("%s %s: invalid response: %w", method, path, err)
+	}
+	return nil
 }
 
 // call sends a request to the Hostinger API and returns the status and body.

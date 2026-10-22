@@ -34,7 +34,7 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer f.mu.Unlock()
 	write := func(status int, v any) {
 		w.WriteHeader(status)
-		_ = json.NewEncoder(w).Encode(v)
+		_ = json.NewEncoder(w).Encode(v) //nolint:errchkjson // test fake
 	}
 	switch {
 	case r.Method == http.MethodGet && r.URL.Path == "/api/vps/v1/virtual-machines":

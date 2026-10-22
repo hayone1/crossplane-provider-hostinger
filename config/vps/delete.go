@@ -2,7 +2,6 @@ package vps
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -41,14 +40,9 @@ func deleteVPS(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagn
 		return diag.Errorf("VPS %d has no subscription", id)
 	}
 	path := fmt.Sprintf("/api/billing/v1/subscriptions/%s/auto-renewal/disable", url.PathEscape(vm.SubscriptionID))
-	status, body, err := call(ctx, c, http.MethodDelete, path, nil)
-	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to turn off auto-renewal of subscription %s: %w", vm.SubscriptionID, err))
-	}
-	if status < 200 || status > 299 {
-		renews, lookupErr := autoRenewed(ctx, c, vm.SubscriptionID)
-		if lookupErr != nil || renews {
-			return diag.Errorf("failed to turn off auto-renewal of subscription %s (HTTP %d): %s", vm.SubscriptionID, status, body)
+	if err := callJSON(ctx, c, http.MethodDelete, path, nil, nil); err != nil {
+		if renews, lookupErr := autoRenewed(ctx, c, vm.SubscriptionID); lookupErr != nil || renews {
+			return diag.FromErr(fmt.Errorf("failed to turn off auto-renewal of subscription %s: %w", vm.SubscriptionID, err))
 		}
 	}
 	d.SetId("")
@@ -56,16 +50,12 @@ func deleteVPS(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagn
 }
 
 func autoRenewed(ctx context.Context, c *hostinger.HostingerClient, subscription string) (bool, error) {
-	status, body, err := call(ctx, c, http.MethodGet, "/api/billing/v1/subscriptions", nil)
-	if err != nil || status != http.StatusOK {
-		return false, fmt.Errorf("failed to list subscriptions (HTTP %d): %s %w", status, body, err)
-	}
 	var subs []struct {
 		ID            string `json:"id"`
 		IsAutoRenewed bool   `json:"is_auto_renewed"`
 	}
-	if err := json.Unmarshal(body, &subs); err != nil {
-		return false, fmt.Errorf("invalid subscription list: %w", err)
+	if err := callJSON(ctx, c, http.MethodGet, "/api/billing/v1/subscriptions", nil, &subs); err != nil {
+		return false, fmt.Errorf("failed to list subscriptions: %w", err)
 	}
 	for _, s := range subs {
 		if s.ID == subscription {

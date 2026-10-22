@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type publicKey struct {
@@ -92,17 +93,20 @@ func (s *server) id() int {
 	return s.nextID
 }
 
+// msgKey is the key of the message in error responses.
+const msgKey = "message"
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v) //nolint:errchkjson // nothing to do if the client went away
 }
 
 func notFound(w http.ResponseWriter) {
-	writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not found"})
+	writeJSON(w, http.StatusNotFound, map[string]string{msgKey: "Not found"})
 }
 
-func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) { //nolint:gocyclo // one flat switch over the routes
 	if r.URL.Path == "/_requests" {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -110,13 +114,13 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Header.Get("Authorization") != "Bearer "+s.token {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Unauthenticated."})
+		writeJSON(w, http.StatusUnauthorized, map[string]string{msgKey: "Unauthenticated."})
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.requests = append(s.requests, r.Method+" "+r.URL.Path)
-	log.Printf("%s %s", r.Method, r.URL.Path)
+	log.Printf("%s %q", r.Method, r.URL.Path)
 
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	switch {
@@ -150,7 +154,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		delete(s.keys, id)
-		writeJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
+		writeJSON(w, http.StatusOK, map[string]string{msgKey: "deleted"})
 
 	case match(parts, "api", "vps", "v1", "post-install-scripts") && r.Method == http.MethodPost:
 		var sc script
@@ -174,7 +178,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, sc)
 		case http.MethodDelete:
 			delete(s.scripts, id)
-			writeJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
+			writeJSON(w, http.StatusOK, map[string]string{msgKey: "deleted"})
 		}
 
 	case match(parts, "api", "vps", "v1", "virtual-machines") && r.Method == http.MethodPost:
@@ -189,7 +193,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		if req.Setup.PostInstallScriptID != nil && s.scripts[*req.Setup.PostInstallScriptID] == nil {
-			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "post install script not found"})
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{msgKey: "post install script not found"})
 			return
 		}
 		id := s.id()
@@ -227,7 +231,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if v.State != "initial" {
-			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "VPS is already set up"})
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{msgKey: "VPS is already set up"})
 			return
 		}
 		var body struct {
@@ -238,7 +242,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 		if body.PostInstallScriptID != nil && s.scripts[*body.PostInstallScriptID] == nil {
-			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "post install script not found"})
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{msgKey: "post install script not found"})
 			return
 		}
 		v.setup(body.DataCenterID, body.TemplateID, body.Hostname)
@@ -302,11 +306,11 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for _, v := range s.vms {
 			if v.SubscriptionID == parts[4] {
 				if v.renewalOff {
-					writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "auto-renewal is already disabled"})
+					writeJSON(w, http.StatusUnprocessableEntity, map[string]string{msgKey: "auto-renewal is already disabled"})
 					return
 				}
 				v.renewalOff = true
-				writeJSON(w, http.StatusOK, map[string]string{"message": "ok"})
+				writeJSON(w, http.StatusOK, map[string]string{msgKey: "ok"})
 				return
 			}
 		}
@@ -348,7 +352,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			s.zones[zone] = entries
-			writeJSON(w, http.StatusOK, map[string]string{"message": "ok"})
+			writeJSON(w, http.StatusOK, map[string]string{msgKey: "ok"})
 		case http.MethodDelete:
 			var body struct {
 				Filters []struct {
@@ -370,10 +374,10 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			s.zones[zone] = kept
-			writeJSON(w, http.StatusOK, map[string]string{"message": "ok"})
+			writeJSON(w, http.StatusOK, map[string]string{msgKey: "ok"})
 		}
 	default:
-		writeJSON(w, http.StatusNotFound, map[string]string{"message": "no such route: " + r.Method + " " + r.URL.Path})
+		writeJSON(w, http.StatusNotFound, map[string]string{msgKey: "no such route: " + r.Method + " " + r.URL.Path})
 	}
 }
 
@@ -410,5 +414,6 @@ func main() {
 	token := flag.String("token", "test-token", "API token the mock accepts")
 	flag.Parse()
 	log.Printf("mock Hostinger API on %s", *addr)
-	log.Fatal(http.ListenAndServe(*addr, newServer(*token)))
+	srv := &http.Server{Addr: *addr, Handler: newServer(*token), ReadHeaderTimeout: 10 * time.Second}
+	log.Fatal(srv.ListenAndServe())
 }
