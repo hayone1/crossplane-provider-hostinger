@@ -2,6 +2,8 @@ module github.com/hayone1/crossplane-provider-hostinger
 
 go 1.26.7
 
+toolchain go1.26.10
+
 tool golang.org/x/tools/cmd/goimports
 
 require (
