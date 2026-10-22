@@ -6,6 +6,13 @@ updates:
       interval: weekly
     commit-message:
       prefix: fix(deps)
+    # The Terraform plugin libraries must match the versions Upjet is built
+    # with (see its go.mod); newer ones don't compile with it. They move when
+    # Upjet does.
+    ignore:
+      - dependency-name: github.com/hashicorp/terraform-plugin-sdk/v2
+      - dependency-name: github.com/hashicorp/terraform-plugin-go
+      - dependency-name: github.com/hashicorp/terraform-plugin-framework
     groups:
       # Bumped together with TERRAFORM_PROVIDER_VERSION and `make generate`.
       terraform-provider:
