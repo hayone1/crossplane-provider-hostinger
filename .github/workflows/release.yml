@@ -24,6 +24,8 @@ concurrency:
 env:
   DOCKER_BUILDX_VERSION: 'v0.34.1'
   CRANE_VERSION: 'v0.20.2'
+  UP_VERSION: 'v0.55.0'
+  UP_SHA256: '92faee16e91d39204ec7e45d2b1f63c2d741045ffb8cf9cfbac8ba2972ac69e6'
   GHCR_ORG: ghcr.io/hayone1
   UPBOUND_ORG: xpkg.upbound.io/codejourney
   PACKAGE: provider-hostinger
@@ -136,10 +138,22 @@ jobs:
           echo "$XPKG_MIRROR_TOKEN" | docker login xpkg.upbound.io -u "$XPKG_MIRROR_ACCESS_ID" --password-stdin
 
       - name: Publish to GHCR
+        if: steps.version.outputs.version != ''
+        run: make -j2 VERSION=${{ steps.version.outputs.version }} BRANCH_NAME=main XPKG_REG_ORGS=$GHCR_ORG XPKG_REG_ORGS_NO_PROMOTE=$GHCR_ORG publish
+
+      # Adds extensions/ (icon, readme, release notes; shown by the Upbound
+      # Marketplace) to the package index. That changes the package digest, so
+      # it runs before the digest is taken for the mirror, signatures and
+      # attestations. Upbound publishes no checksums for up; the one below was
+      # recorded when the version was pinned.
+      - name: Attach the extensions
         id: ghcr
         if: steps.version.outputs.version != ''
         run: |
-          make -j2 VERSION=${{ steps.version.outputs.version }} BRANCH_NAME=main XPKG_REG_ORGS=$GHCR_ORG XPKG_REG_ORGS_NO_PROMOTE=$GHCR_ORG publish
+          curl -fsSLo up "https://cli.upbound.io/stable/$UP_VERSION/bin/linux_amd64/up"
+          echo "$UP_SHA256  up" | sha256sum -c -
+          chmod +x up
+          ./up alpha xpkg append --extensions-root=./extensions "$GHCR_ORG/$PACKAGE:${{ steps.version.outputs.version }}"
           echo "digest=$(crane digest "$GHCR_ORG/$PACKAGE:${{ steps.version.outputs.version }}")" >> "$GITHUB_OUTPUT"
 
       - name: Mirror to Upbound

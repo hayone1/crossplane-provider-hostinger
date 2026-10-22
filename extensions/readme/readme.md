@@ -1,4 +1,6 @@
-# Hostinger Provider
+# Crossplane provider for Hostinger® services
+
+> Independent community project, not affiliated with, sponsored or endorsed by Hostinger. Hostinger® is a trademark of its owner, used only to name the service this provider works with.
 
 `provider-hostinger` manages [Hostinger](https://www.hostinger.com) resources
 with Crossplane: VPS instances, the SSH keys attached to them, reusable

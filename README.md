@@ -1,7 +1,11 @@
+<img src="extensions/icons/icon.svg" alt="" width="96" align="right">
+
 # provider-hostinger
 
-A [Crossplane](https://crossplane.io) provider for [Hostinger](https://www.hostinger.com):
-VPS instances, SSH keys, post-install scripts and DNS records.
+A [Crossplane](https://crossplane.io) provider for [Hostinger®](https://www.hostinger.com)
+services: VPS instances, SSH keys, post-install scripts and DNS records.
+
+> Independent community project, not affiliated with, sponsored or endorsed by Hostinger. Hostinger® is a trademark of its owner, used only to name the service this provider works with.
 
 It is generated with [Upjet](https://github.com/crossplane/upjet) from the
 [Hostinger Terraform provider](https://registry.terraform.io/providers/hostinger/hostinger/latest)
