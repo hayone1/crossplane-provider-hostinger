@@ -3,4 +3,4 @@ kind: Provider
 metadata:
   name: provider-hostinger
 spec:
-  package: xpkg.crossplane.io/hayone1/provider-hostinger:v0.1.0
+  package: ghcr.io/hayone1/provider-hostinger:v0.1.0

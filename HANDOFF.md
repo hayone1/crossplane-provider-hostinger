@@ -1,6 +1,6 @@
 # Handoff: crossplane-provider-hostinger
 
-State as of 2026-10-21. One local commit, no remote yet.
+State as of 2026-10-22. Pushed to github.com/hayone1/crossplane-provider-hostinger.
 
 ## What it is
 Upjet-generated Crossplane provider for the Hostinger Terraform provider
@@ -15,6 +15,10 @@ Resources, both cluster-scoped (`*.hostinger.crossplane.io`) and namespaced
 - `apis/*/v1beta1/types.go`: added `ProviderConfigSpec.Endpoint`
 - `config/vps/config.go` `readScriptOrGone`: fixes upstream bug where deleting a
   PostInstallScript hung forever (verified by disabling it)
+- `config/vps/purchase.go` (Create), `sshkeys.go` (Update), `delete.go`
+  (Delete) replace upstream VPS CRUD, which is broken against the real API:
+  HTTP 202 purchases were retried (bought twice), SSH keys went through
+  removed/no-op endpoints, and subscription cancel is a removed route
 - `hack/add-docs-prelude.sh`: adds front matter upstream docs lack (scraper needs it)
 - `test/mockapi`, `test/e2e/run.sh`, `examples/`
 
@@ -30,9 +34,11 @@ make local-deploy          # kind + Crossplane + local package (use a separate K
 `make` lives in `~/.local/bin` (extracted .deb), Go in `~/.local/go`.
 
 ## Verified
-Unit tests pass; mock e2e passes for both scopes (create, references,
-update, delete); image + xpkg build; package installs Healthy in Crossplane
-and reconciles in-cluster. Never run against the real Hostinger API.
+Unit tests pass; mock e2e passes for both scopes; image + xpkg build;
+package installs Healthy in Crossplane. Real API (2026-10-22, zone
+softwarecloud.io): full e2e passes in both scopes, VPS covered by importing
+one existing VPS (`REAL=1 ZONE=… VPS_SCOPE=… VPS_ID=… POLL=1m`). The
+purchase path (incl. HTTP 202 + setup + adopt) was exercised for real once.
 
 ## Upgrading the Terraform provider
 Bump `github.com/hostinger/terraform-provider-hostinger` in `go.mod` and
@@ -41,7 +47,11 @@ Re-check upstream for new resources (add to `ExternalNameConfigs`) and
 whether the PostInstallScript Read bug is fixed.
 
 ## Gotchas
-- Creating a VPS buys a subscription; deleting cancels it. Real-API tests cost money.
+- Creating a VPS buys a subscription; deleting only turns off auto-renewal
+  (the API can't cancel any more). Real-API tests cost money.
+- The real API rate limits hard (Cloudflare 1015, ~2 h lockout); use POLL=1m.
+- Root password: only `# + ? @` as special characters.
+- Post-install scripts return Unauthorized until the account has a VPS.
 - Namespaced `ProviderConfig.secretRef.namespace` is required by schema but
   ignored (secret is read from the MR's namespace).
 - Upstream data sources have no Crossplane equivalent; not implemented.
@@ -49,8 +59,7 @@ whether the PostInstallScript Read bug is fixed.
   credentials; `e2e-mock.yml` is the free one.
 
 ## Open / next
-- Create `github.com/hayone1/crossplane-provider-hostinger`, push, then
-  publish via `publish-provider-package.yml` (registry is `ghcr.io/hayone1`
-  in the Makefile; README's install snippet assumes `v0.1.0`).
-- Real-API smoke test with a token (SSHKey/Record/PostInstallScript are free;
-  VPS is not).
+- Tag v0.1.0 and publish via `publish-provider-package.yml` (registry is
+  `ghcr.io/hayone1`); optionally also Upbound Marketplace.
+- Upstream bugs reported to hostinger/terraform-provider-hostinger; drop the
+  CRUD overrides once fixed.

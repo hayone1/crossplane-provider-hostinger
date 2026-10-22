@@ -31,6 +31,7 @@ func Configure(p *ujconfig.Provider) {
 		if read := r.TerraformResource.ReadContext; read != nil {
 			r.TerraformResource.CreateContext = createVPS(read)
 			r.TerraformResource.UpdateContext = updateVPS(read)
+			r.TerraformResource.DeleteContext = deleteVPS
 		}
 
 		// The Terraform attributes are numeric IDs; the referenced

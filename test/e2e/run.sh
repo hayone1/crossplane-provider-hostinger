@@ -10,6 +10,8 @@
 # Needs docker, kind, kubectl, jq, curl, ssh-keygen and go. Takes about 5
 # minutes.
 #   KEEP=1  keep the cluster and processes afterwards
+#   POLL=1m poll interval of the controller (default 15s); the real API is
+#           rate limited
 #   REAL=1  use the real Hostinger API instead of the mock. Needs
 #           HOSTINGER_API_KEY (read from .env if present) and ZONE, a DNS
 #           zone in the account. Only SSHKey, PostInstallScript and Record
@@ -93,7 +95,7 @@ if [[ "${REAL:-}" != 1 ]]; then
   "$work/mockapi" -addr "${base#http://}" -token "$token" > "$work/mock.log" 2>&1 &
   mock_pid=$!
 fi
-"$work/provider" --debug --poll=15s > "$work/provider.log" 2>&1 &
+"$work/provider" --debug --poll="${POLL:-15s}" > "$work/provider.log" 2>&1 &
 provider_pid=$!
 until api /api/vps/v1/templates >/dev/null; do sleep 1; done
 scripts_allowed=""
@@ -132,10 +134,16 @@ has_key() {
 }
 
 # delete_vps <group> [-n namespace]
+# Deleting a VPS turns off its subscription's auto-renewal; the API can't
+# cancel it any more, so the VPS stays until the end of the billing period.
 delete_vps() {
-  local group=$1; shift
+  local group=$1 id sub; shift
+  id=$(kubectl get "vps.vps.$group/web" "$@" -o jsonpath='{.metadata.annotations.crossplane\.io/external-name}')
+  sub=$(api "/api/vps/v1/virtual-machines/$id" | jq -r .subscription_id)
   kubectl delete "vps.vps.$group/web" "$@" --wait=false >/dev/null
   kubectl wait "vps.vps.$group/web" "$@" --for=delete --timeout=600s >/dev/null || fail "VPS not deleted"
+  api /api/billing/v1/subscriptions | jq -e --arg s "$sub" 'any(.[]; .id == $s and .is_auto_renewed == false)' >/dev/null ||
+    fail "subscription $sub of VPS $id still renews"
 }
 
 # run_scope <cluster|namespaced>
@@ -273,9 +281,6 @@ EOF
   api /api/vps/v1/public-keys | jq -e --argjson id "$key_id" '.data[] | select(.id == $id)' >/dev/null && fail "SSH key left behind"
   api "/api/vps/v1/post-install-scripts/$script_id" >/dev/null 2>&1 && fail "script left behind"
   api "/api/dns/v1/zones/$zone" | jq -e --arg n "$rec" '.[]? | select(.name == $n)' >/dev/null && fail "DNS record left behind"
-  if [[ -n $with_vps && "${REAL:-}" != 1 ]]; then
-    [[ $(api /api/vps/v1/virtual-machines | jq 'length') == 0 ]] || fail "VPS left behind"
-  fi
   echo "everything deleted"
 }
 

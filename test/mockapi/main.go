@@ -45,6 +45,7 @@ type vm struct {
 	DataCenterID   int    `json:"data_center_id,omitempty"`
 	TemplateID     int    `json:"template_id,omitempty"`
 	sshKeys        []string
+	renewalOff     bool
 }
 
 type dnsRecord struct {
@@ -288,26 +289,28 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, data)
 
-	case match(parts, "api", "billing", "v1", "subscriptions", "*"):
-		var found *vm
+	// The real API can't cancel a subscription any more (DELETE
+	// subscriptions/{id} is gone); turning off auto-renewal lets the VPS
+	// expire at the end of the billing period.
+	case match(parts, "api", "billing", "v1", "subscriptions"):
+		list := []map[string]any{}
+		for _, v := range s.vms {
+			list = append(list, map[string]any{"id": v.SubscriptionID, "status": "active", "is_auto_renewed": !v.renewalOff})
+		}
+		writeJSON(w, http.StatusOK, list)
+	case match(parts, "api", "billing", "v1", "subscriptions", "*", "auto-renewal", "disable") && r.Method == http.MethodDelete:
 		for _, v := range s.vms {
 			if v.SubscriptionID == parts[4] {
-				found = v
+				if v.renewalOff {
+					writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"message": "auto-renewal is already disabled"})
+					return
+				}
+				v.renewalOff = true
+				writeJSON(w, http.StatusOK, map[string]string{"message": "ok"})
+				return
 			}
 		}
-		if found == nil {
-			notFound(w)
-			return
-		}
-		switch r.Method {
-		case http.MethodGet:
-			writeJSON(w, http.StatusOK, map[string]any{"id": found.SubscriptionID, "status": "active", "item_id": found.Plan})
-		case http.MethodDelete:
-			// Cancelling a subscription removes the VPS in this mock; the
-			// real API removes it at the end of the billing period.
-			delete(s.vms, found.ID)
-			w.WriteHeader(http.StatusNoContent)
-		}
+		notFound(w)
 
 	case match(parts, "api", "dns", "v1", "zones", "*"):
 		zone := parts[4]

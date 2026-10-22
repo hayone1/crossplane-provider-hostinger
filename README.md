@@ -127,6 +127,7 @@ manifests for every kind.
 | VPS purchase answered with HTTP 202 (payment still processing) | create fails; every retry buys another VPS, and the bought one is never set up | waits for the VPS, sets it up and waits until it is running |
 | VPS already bought but not set up (state `initial`) | ignored | adopted by the next `VPS` created, instead of buying another |
 | `sshKeyIds` | deprecated endpoints: listing a VPS's keys fails (HTTP 404), so every change of `sshKeyIds` fails, and attaching answers 200 without installing the key | keys are installed through `/virtual-machines/{id}/ssh-keys` |
+| Deleting a `VPS` | cancels the subscription through a route the API no longer serves (HTTP 404), so it never succeeds | turns off auto-renewal of the subscription |
 | API endpoint | fixed | `ProviderConfig.spec.endpoint` |
 | Credentials | `api_token` argument / `HOSTINGER_API_TOKEN` | Secret, environment or filesystem source; JSON `{"api_token": …}` or the bare token |
 | Data sources | three | none (see above) |
@@ -137,7 +138,10 @@ These come from the Hostinger API and the Terraform provider, and apply here
 too:
 
 - **Creating a `VPS` buys a subscription** with the account's default payment
-  method (or `paymentMethodId`). **Deleting it cancels the subscription.** For
+  method (or `paymentMethodId`). **Deleting it turns off the subscription's
+  auto-renewal**: the Hostinger API can no longer cancel a subscription, so
+  the VPS keeps running until the end of the paid period and is then
+  removed. Ask Hostinger support for a refund if you need one. For
   servers that must outlive their manifest, use `deletionPolicy: Orphan`, or
   `managementPolicies: ["Observe"]` to only track an existing VPS.
 - A new `VPS` first takes over any VPS in the account that is paid for but

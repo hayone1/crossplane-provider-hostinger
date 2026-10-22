@@ -1,5 +1,6 @@
 # Creating a VPS purchases a subscription with the default payment method,
-# and deleting it cancels the subscription. Consider
+# and deleting it turns off its auto-renewal (the VPS runs until the end
+# of the paid period). Consider
 # managementPolicies or deletionPolicy: Orphan for production servers.
 apiVersion: vps.hostinger.m.crossplane.io/v1alpha1
 kind: VPS
