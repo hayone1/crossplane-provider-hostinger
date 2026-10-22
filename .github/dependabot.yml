@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: fix(deps)
+    groups:
+      # Bumped together with TERRAFORM_PROVIDER_VERSION and `make generate`.
+      terraform-provider:
+        patterns: [github.com/hostinger/terraform-provider-hostinger]
+      go:
+        patterns: ['*']
+        exclude-patterns: [github.com/hostinger/terraform-provider-hostinger]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']

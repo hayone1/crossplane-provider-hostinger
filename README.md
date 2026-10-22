@@ -208,6 +208,14 @@ Commit](https://www.conventionalcommits.org) subjects since the last tag
 one before v1.0.0), anything else the patch version. Commits that are only
 `docs:`, `ci:`, `chore:`, `test:` or `style:` don't release.
 
+The pipeline's security checks: govulncheck, CodeQL, gitleaks and (on pull
+requests) dependency review run on every change and weekly; OpenSSF
+Scorecard weekly; a release is scanned with Grype before it is pushed and
+fails on a fixable critical vulnerability, and is then signed with cosign
+and gets SLSA provenance and an SBOM ([SECURITY.md](SECURITY.md) shows how to
+verify them). Dependabot keeps Go modules and actions up to date, and all
+actions are pinned by commit.
+
 ## License
 
 Apache 2.0.
