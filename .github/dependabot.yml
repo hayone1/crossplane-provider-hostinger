@@ -30,3 +30,11 @@ updates:
     groups:
       actions:
         patterns: ['*']
+
+  # Keeps the digest-pinned distroless base image current.
+  - package-ecosystem: docker
+    directory: /cluster/images/provider-hostinger
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: fix(deps)

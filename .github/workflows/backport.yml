@@ -10,13 +10,15 @@ on:
     types: [closed]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   open-pr:
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged
+    permissions:
+      contents: write       # push the backport branch
+      pull-requests: write  # open the backport PR
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
