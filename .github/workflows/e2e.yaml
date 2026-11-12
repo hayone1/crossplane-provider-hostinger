@@ -10,8 +10,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
-  statuses: write
 
 jobs:
   check-permissions:
@@ -40,6 +38,10 @@ jobs:
     needs: check-permissions
     if: ${{ (needs.check-permissions.outputs.permission == 'admin' || needs.check-permissions.outputs.permission == 'write') && github.event.issue.pull_request != null && contains(github.event.comment.body, '/test-examples')}}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write   # pending status check on the PR commit
     outputs:
       example_list: ${{ steps.get-example-list-name.outputs.example-list }}
       example_hash: ${{ steps.get-example-list-name.outputs.example-hash }}
@@ -100,6 +102,10 @@ jobs:
       - get-example-list
     if: ${{ (needs.check-permissions.outputs.permission == 'admin' || needs.check-permissions.outputs.permission == 'write') && github.event.issue.pull_request != null && contains(github.event.comment.body, '/test-examples')}}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write   # success/failure status check on the PR commit
 
     steps:
       - name: Cleanup Disk
